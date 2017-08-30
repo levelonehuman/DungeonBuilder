@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 
 namespace DungeonBuilder {
     class Program {
-        static int rooms = 5;
-        static int gridWidth = 80;
+        static int rooms = 6;
+        static int gridWidth = 100;
         static int gridHeight = 48;
         static int minDistance = 5;
 
@@ -26,14 +26,24 @@ namespace DungeonBuilder {
             points = new List<Point>();
             
             Console.SetWindowSize(consoleWidth, consoleHeight);
-
-            grid = new int[gridWidth, gridHeight];
-            random = new Random();
             
-            AddPoints();
-            DrawGrid();
+            random = new Random();            
+            
+            ConsoleKeyInfo input;
+            do {
+                Console.WriteLine("Press 'G' to generate a new map. Press 'Q' to quit.");
+                input = Console.ReadKey();
+                if (input.Key == ConsoleKey.G) {
+                    Console.Clear();
+                    grid = new int[gridWidth, gridHeight];
+                    AddPoints();
+                    GrowRooms();
+                    DrawGrid();
+                }
 
-            Console.ReadLine();
+            } while (input.Key != ConsoleKey.Q);
+
+            
         }
 
         /// <summary>
@@ -70,6 +80,75 @@ namespace DungeonBuilder {
 
                 grid[x, y] = i + 1;
             }
+        }
+
+        /// <summary>
+        /// Loop through each of the rooms as long as there's space to grow.
+        /// </summary>
+        private static void GrowRooms() {
+            int gridStep = 0; //How many spaces out we look from the initial point.
+
+            while (points.Count > 0) {
+                gridStep++;
+                List<Point> pointsToRemove = new List<Point>();
+                for (int i = 0; i < points.Count; i++) {                    
+                    Point p = points[i];
+                    int pointNumber = grid[p.X, p.Y];
+                    Dictionary<Point, int> surroundingSpaces = GetSurroundingSpaces(p.X, p.Y, gridStep);
+
+                    if (surroundingSpaces.Count == 0 || surroundingSpaces.Any(s => s.Value != 0 && s.Value != pointNumber)) { //this room has run out of space
+                        pointsToRemove.Add(p);
+                        continue;
+                    }
+
+                    foreach (KeyValuePair<Point, int> space in surroundingSpaces) {
+                        grid[space.Key.X, space.Key.Y] = pointNumber;
+                    }
+                }
+
+                foreach (Point point in pointsToRemove) {
+                    points.Remove(point);
+                }
+            }
+
+        }
+
+        /// <summary>
+        /// Checks the grid and returns a Dictionary where the Key is the location and Value is the current value at that location.
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="step"></param>
+        /// <returns>A dictionary with the Point as the key and the value representing the grid content at that space.</returns>
+        private static Dictionary<Point, int> GetSurroundingSpaces(int x, int y, int step) {
+            Dictionary<Point, int> spaces = new Dictionary<Point, int>();
+            List<Point> possiblePoints = new List<Point>();
+
+            for (int i = x - step; i <= x + step; i++) {
+                for (int j = y - step; j <= y + step; j++) {
+                    if (i == x && j == y) { //skip the target point
+                        continue;
+                    }
+                    possiblePoints.Add(new Point(i, j));
+                }
+            }
+
+            foreach (Point point in possiblePoints) {
+                if (PointInBounds(point)) {
+                    spaces.Add(point, grid[point.X, point.Y]);
+                }
+            }
+
+            return spaces;
+        }
+
+        /// <summary>
+        /// Checks whether a given point is within the bounds of the grid.
+        /// </summary>
+        /// <param name="p">The point to check.</param>
+        /// <returns>True if the point is in bounds.</returns>
+        private static bool PointInBounds(Point p) {
+            return p.X > 0 && p.Y > 0 && p.X < gridWidth && p.Y < gridHeight;
         }
 
         /// <summary>
